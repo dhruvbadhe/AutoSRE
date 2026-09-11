@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+chroma_db/
+Decisions.md
+Architecture.md
+Flow.md
+Code_Explanation.md
+Logic.md

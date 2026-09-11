@@ -1,0 +1,37 @@
+[
+  {
+    "id": "rb-001",
+    "title": "Remediating OOMKilled Service Pods",
+    "service": "auth-service",
+    "procedure": "1. Inspect heap usage and recent crash metrics. 2. Temporarily patch container memory resource limits from 512MiB to 1024MiB to stabilize service. 3. Trigger rolling restart of deployment to release stuck heap buffers. 4. Verify pod memory remains below 70% threshold.",
+    "command_snippet": "kubectl set resources deployment auth-service --limits=memory=1024Mi --requests=memory=512Mi\nkubectl rollout restart deployment auth-service\nkubectl rollout status deployment auth-service"
+  },
+  {
+    "id": "rb-002",
+    "title": "Resolving PostgreSQL Connection Pool Exhaustion",
+    "service": "payment-api",
+    "procedure": "1. Identify idle-in-transaction connections in Postgres. 2. Terminate hung backend PIDs holding locks for greater than 60 seconds. 3. Increase max pool size in service environment variables or restart connection pooler (PgBouncer).",
+    "command_snippet": "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'idle in transaction' AND state_change < now() - interval '60 seconds';\nkubectl scale deployment payment-api --replicas=4"
+  },
+  {
+    "id": "rb-003",
+    "title": "Mitigating Upstream 504 Gateway Timeouts",
+    "service": "checkout-api",
+    "procedure": "1. Check upstream inventory service health and response latency. 2. Enable circuit breaker to bypass slow dependency. 3. Scale checkout service replica count by 2x to drain incoming connection backlog.",
+    "command_snippet": "kubectl scale deployment checkout-api --replicas=6\nkubectl logs -l app=checkout-api --tail=100 | grep -E '504|timeout'"
+  },
+  {
+    "id": "rb-004",
+    "title": "Fixing Redis Out of Memory (OOM) Errors",
+    "service": "user-cache-redis",
+    "procedure": "1. Connect to Redis instance via redis-cli. 2. Update memory eviction policy dynamically to allkeys-lru. 3. Trigger manual memory purge of expired keys.",
+    "command_snippet": "redis-cli CONFIG SET maxmemory-policy allkeys-lru\nredis-cli MEMORY PURGE\nredis-cli INFO memory"
+  },
+  {
+    "id": "rb-005",
+    "title": "Recovering Pods in CrashLoopBackOff Due to Missing Environment Variables",
+    "service": "order-worker",
+    "procedure": "1. View pod termination reason and logs. 2. Validate ConfigMap and Secret bindings in deployment spec. 3. Re-apply missing environment configuration and verify pod enters Running state.",
+    "command_snippet": "kubectl describe pod -l app=order-worker\nkubectl set env deployment/order-worker KAFKA_BROKER_URL=kafka-cluster.internal:9092\nkubectl rollout status deployment/order-worker"
+  }
+]

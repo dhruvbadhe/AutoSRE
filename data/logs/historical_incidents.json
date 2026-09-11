@@ -1,0 +1,42 @@
+[
+  {
+    "id": "inc-001",
+    "service": "auth-service",
+    "error_type": "OOMKilled",
+    "severity": "CRITICAL",
+    "log_snippet": "kernel: [19482.112] Out of memory: Kill process 29141 (auth-service) score 912 or sacrifice child. container auth-service terminated with exit code 137 (OOMKilled). cgroup memory limit 512MiB exceeded.",
+    "root_cause": "Memory leak in JWT session validation caching unbounded tokens in heap space without TTL eviction."
+  },
+  {
+    "id": "inc-002",
+    "service": "payment-api",
+    "error_type": "DatabaseConnectionTimeout",
+    "severity": "HIGH",
+    "log_snippet": "sqlalchemy.exc.TimeoutError: QueuePool limit of size 20 overflow 10 reached, connection timed out 30.00s. Active transactions: 30, waiting queries: 142. PostgreSQL backend reporting max_connections reached.",
+    "root_cause": "Connection pool leakage caused by unclosed database sessions in webhook callback handler during third-party gateway timeouts."
+  },
+  {
+    "id": "inc-003",
+    "service": "checkout-api",
+    "error_type": "504 Gateway Timeout",
+    "severity": "CRITICAL",
+    "log_snippet": "nginx/1.24.0: 2026/09/11 14:22:01 [error] 48#48: *1092 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 10.0.4.12, server: checkout.internal, request: POST /api/v1/checkout, upstream: http://10.0.12.88:8080/api/v1/checkout",
+    "root_cause": "Inventory validation service threadpool deadlock causing downstream HTTP request queue exhaustion."
+  },
+  {
+    "id": "inc-004",
+    "service": "user-cache-redis",
+    "error_type": "OOM Command Not Allowed",
+    "severity": "HIGH",
+    "log_snippet": "redis.exceptions.ResponseError: OOM command not allowed when used memory > 'maxmemory'. Used memory: 2.1GB, maxmemory: 2.0GB. Eviction policy noeviction failed to free space.",
+    "root_cause": "Redis maxmemory policy configured to noeviction instead of allkeys-lru during session spike."
+  },
+  {
+    "id": "inc-005",
+    "service": "order-worker",
+    "error_type": "CrashLoopBackOff",
+    "severity": "HIGH",
+    "log_snippet": "k8s pod order-worker-7b99c456d-x2q7z crashed with status 1. Container log: pydantic.error_wrappers.ValidationError: 1 validation error for WorkerConfig KAFKA_BROKER_URL: field required (type=value_error.missing)",
+    "root_cause": "Kubernetes ConfigMap missing environment variable KAFKA_BROKER_URL after staging-to-prod deployment rollout."
+  }
+]
