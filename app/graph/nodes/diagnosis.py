@@ -6,9 +6,9 @@ def diagnose_node(state: IncidentState) -> dict:
     parsed = state.get("parsed_incident", {})
     service = parsed.get("service", "")
     error_type = parsed.get("error_type", "")
-    raw_logs = parsed.get("raw_logs", [])
+    raw_logs = state.get("raw_logs", [])
 
-    query = f"{service} {error_type}" + "".join(raw_logs[:3])
+    query = f"{service} {error_type} " + " ".join(raw_logs[:3])
     retrieved_incidents = vector_store.search_incidents(query, top_k=3)
 
     historical_context = ""
@@ -17,7 +17,7 @@ def diagnose_node(state: IncidentState) -> dict:
         meta = inc.get("metadata", {})
         historical_context += f"\n[Historical Incident {idx+1}]\nService: {meta.get('service')}\nError: {meta.get('error_type')}\nRoot Cause: {meta.get('root_cause')}\nDetails: {doc}\n"
 
-        prompt = f"""You are a Principal Site Reliability Engineer (SRE).
+    prompt = f"""You are a Principal Site Reliability Engineer (SRE).
 Analyze the following active incident alert and raw logs against past verified post-mortems.
 ACTIVE INCIDENT:
 Service: {service}
@@ -25,7 +25,7 @@ Error Type: {error_type}
 Raw Logs:
 {chr(10).join(raw_logs[:5])}
 HISTORICAL INCIDENT CONTEXT (from VectorDB):
-{historical_context}
+{historical_context if historical_context else "No direct historical match found."}
 TASK:
 State a concise, technical hypothesis (2-3 sentences) identifying:
 1. The most probable root cause.

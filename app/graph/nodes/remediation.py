@@ -17,9 +17,9 @@ def fix_proposal_node(state: IncidentState) -> dict:
         doc = rb.get("document", "")
         meta = rb.get("metadata", {})
         cmd = meta.get("command_snippet", "")
-        runbook_context += f"\n [Runbook {idx+1}: {meta.get('title')}]\nProcedure: {doc}\nCommands: {cmd}\n"
+        runbook_context += f"\n[Runbook {idx+1}: {meta.get('title')}]\nProcedure: {doc}\nCommands: {cmd}\n"
 
-        prompt = f"""You are a Lead Infrastructure Engineer formulating a precise incident remediation plan.
+    prompt = f"""You are a Lead Infrastructure Engineer formulating a precise incident remediation plan.
 Target Service: {service}
 Detected Error: {error_type}
 Verified Hypothesis: {hypothesis}

@@ -70,18 +70,22 @@ Draft a concise, standardized post-mortem markdown report with the following sec
         for step in reasoning_trace:
             audit = AgentAuditLog(
                 incident_id=db_incident.id,
-                node_name = "graph_execution",
-                decision_text = step         
+                node_name="graph_execution",
+                decision_text=step
             )
             db.add(audit)
         db.commit()
+        saved_incident_id = db_incident.id
     finally:
         db.close()
 
     reasoning_step = f"Output Node: Compiled post-mortem draft and committed incident status '{final_status}' to relational database."
     updated_trace = reasoning_trace + [reasoning_step]
 
+    parsed["incident_id"] = saved_incident_id
+
     return {
-        "post_mortem_draft" : post_mortem,
-        "reasoning_trace" : updated_trace
+        "parsed_incident": parsed,
+        "post_mortem_draft": post_mortem,
+        "reasoning_trace": updated_trace
     }

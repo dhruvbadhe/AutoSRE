@@ -11,11 +11,11 @@ def grader_node(state: IncidentState) -> dict:
         meta = inc.get("metadata", {})
         context_summary += f"Past Case {idx+1}: {meta.get('service')} - {meta.get('error_type')}: {meta.get('root_cause')}\n"
 
-        prompt = f"""You are a strict SRE Audit Grader evaluating the validity of a root-cause hypothesis.
+    prompt = f"""You are a strict SRE Audit Grader evaluating the validity of a root-cause hypothesis.
 PROPOSED HYPOTHESIS:
 {hypothesis}
 RETRIEVED HISTORICAL EVIDENCE:
-{context_summary}
+{context_summary if context_summary else "No historical evidence retrieved."}
 TASK:
 Determine if the retrieved historical evidence directly supports and explains the hypothesis.
 - If the evidence clearly identifies the failing mechanism, respond with: 'SUFFICIENT'
