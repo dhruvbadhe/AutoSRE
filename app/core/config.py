@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gemini-2.5-flash"
     EMBEDDING_MODEL: str = "gemini=embedding-001"
     CHROMA_DB_PATH: str = "./chroma_db"
+    DATABASE_URL: str = "sqlite:///./incidents.db"
+
 
     class Config:
         env_file = ".env"

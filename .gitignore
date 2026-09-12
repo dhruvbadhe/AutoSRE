@@ -4,8 +4,10 @@ __pycache__/
 .env
 .DS_Store
 chroma_db/
+incidents.db
 Decisions.md
 Architecture.md
 Flow.md
 Code_Explanation.md
 Logic.md
+whynotX.md
