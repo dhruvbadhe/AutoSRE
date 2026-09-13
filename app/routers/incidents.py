@@ -80,11 +80,15 @@ def get_incident_metrics(db: Session = Depends(get_db)):
     ).all()
 
     total_duration = 0.0
+    valid_count = 0
     for inc in resolved_incidents:
         if inc.resolved_at and inc.created_at:
             delta = (inc.resolved_at - inc.created_at).total_seconds()
-            total_duration += delta
-    mttr = total_duration / len(resolved_incidents) if resolved_incidents else 0.0
+            if delta >= 0.0:
+                total_duration += delta
+                valid_count += 1
+
+    mttr = total_duration / valid_count if valid_count > 0 else 0.0
 
     return MetricsResponse(
         total_incidents=total,

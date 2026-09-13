@@ -42,18 +42,28 @@ Draft a concise, standardized post-mortem markdown report with the following sec
             db_incident = db.query(Incident).filter(Incident.id == incident_id).first()
 
         if not db_incident:
+            ingestion_time_str = parsed.get("timestamp")
+            if ingestion_time_str:
+                try:
+                    incident_created_at = datetime.fromisoformat(ingestion_time_str)
+                except Exception:
+                    incident_created_at = datetime.utcnow()
+            else:
+                incident_created_at = datetime.utcnow()
+
             db_incident = Incident(
-                service = service,
-                severity = severity,
-                error_type = error_type,
-                raw_alert = state.get("raw_alert", ""),
-                status = final_status,
-                hypothesis = hypothesis,
-                proposed_fix = proposed_fix,
-                fix_confidence = fix_confidence,
+                service=service,
+                severity=severity,
+                error_type=error_type,
+                raw_alert=state.get("raw_alert", ""),
+                status=final_status,
+                hypothesis=hypothesis,
+                proposed_fix=proposed_fix,
+                fix_confidence=fix_confidence,
                 verification_result=verification_result,
-                post_mortem_draft = post_mortem,
-                resolved_at = datetime.utcnow() if not escalate else None
+                post_mortem_draft=post_mortem,
+                created_at=incident_created_at,
+                resolved_at=datetime.utcnow() if not escalate else None
             )
             db.add(db_incident)
             db.flush()
