@@ -1,5 +1,8 @@
 import os
 import sys
+import warnings
+warnings.filterwarnings("ignore")
+
 import typer
 import httpx
 from typing import Optional, List
