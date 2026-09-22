@@ -6,13 +6,13 @@ import json
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 st.set_page_config(
-    page_title="Incident Response Agent",
-    page_icon="🛡️",
+    page_title="AutoSRE - Autonomous Incident Response Agent",
+    page_icon="⚡",
     layout="wide"
 )
 
-st.title("Autonomous Incident Response Agent")
-st.caption("Agentic Corrective RAG (CRAG) with Multi-Index Hybrid Search for Automated SRE Remediation")
+st.title("⚡ AutoSRE")
+st.caption("Autonomous Incident Response Agent powered by Corrective RAG (CRAG) & Multi-Index Hybrid Search")
 
 def fetch_metrics():
     try:

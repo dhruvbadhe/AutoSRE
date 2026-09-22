@@ -55,6 +55,7 @@ def trigger_incident_triage(
     return incident
 
 @router.get("", response_model=List[IncidentResponse])
+@router.get("/", response_model=List[IncidentResponse], include_in_schema=False)
 def list_incidents(
     status_filter: Optional[str] = None,
     service_filter: Optional[str] = None,
@@ -64,44 +65,47 @@ def list_incidents(
     if status_filter:
         query = query.filter(Incident.status == status_filter.upper())
     if service_filter:
-        query = query.filter(Incident.service == service_filter.lower())
-    return query.order_by(Incident.created_at.desc()).all()
+        query = query.filter(Incident.service == service_filter)
+    incidents = query.order_by(Incident.created_at.desc()).all()
+    return incidents
 
 @router.get("/metrics", response_model=MetricsResponse)
-def get_incident_metrics(db: Session = Depends(get_db)):
+def get_metrics(db: Session = Depends(get_db)):
     total = db.query(Incident).count()
     resolved = db.query(Incident).filter(Incident.status == "RESOLVED").count()
     escalated = db.query(Incident).filter(Incident.status == "ESCALATED").count()
-    open_count = db.query(Incident).filter(Incident.status == "OPEN").count()
 
-    resolved_incidents = db.query(Incident).filter(
+    incidents = db.query(Incident).filter(
         Incident.status == "RESOLVED",
         Incident.resolved_at.isnot(None)
     ).all()
 
-    total_duration = 0.0
-    valid_count = 0
-    for inc in resolved_incidents:
-        if inc.resolved_at and inc.created_at:
-            delta = (inc.resolved_at - inc.created_at).total_seconds()
-            if delta >= 0.0:
-                total_duration += delta
-                valid_count += 1
+    mttr_seconds = 0.0
+    if incidents:
+        deltas = [
+            (inc.resolved_at - inc.created_at).total_seconds()
+            for inc in incidents
+            if inc.resolved_at and inc.created_at
+        ]
+        if deltas:
+            mttr_seconds = sum(deltas) / len(deltas)
 
-    mttr = total_duration / valid_count if valid_count > 0 else 0.0
-
-    return MetricsResponse(
-        total_incidents=total,
-        resolved_count=resolved,
-        escalated_count=escalated,
-        open_count=open_count,
-        mttr_seconds=round(mttr,2)
-    )
+    return {
+        "total_incidents": total,
+        "resolved_incidents": resolved,
+        "escalated_incidents": escalated,
+        "mean_time_to_resolution_seconds": round(mttr_seconds, 2)
+    }
 
 @router.get("/{incident_id}", response_model=IncidentDetailResponse)
-def get_incident(incident_id: str, db: Session = Depends(get_db)):
+def get_incident_detail(
+    incident_id: str,
+    db: Session = Depends(get_db)
+):
     incident = db.query(Incident).filter(Incident.id == incident_id).first()
     if not incident:
-        raise HTTPException(status_code=404, detail="Incident not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident '{incident_id}' not found."
+        )
     return incident
-

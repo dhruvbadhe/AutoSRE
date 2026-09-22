@@ -6,8 +6,8 @@ from app.routers import incidents
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Autonomous Incident Response Agent",
-    description="Agentic CRAG system for automated SRE root-cause diagnosis, runbook remediation, and post-mortem generation.",
+    title="AutoSRE",
+    description="Autonomous SRE Agent powered by Corrective RAG (CRAG) for root-cause diagnosis, runbook remediation, and post-mortem generation.",
     version="1.0.0"
 )
 
@@ -24,7 +24,7 @@ app.include_router(incidents.router)
 def health_check():
     return {
         "status" : "healthy",
-        "service" : "incident-reponse-agent",
+        "service" : "AutoSRE",
         "orchestrator" : "LangGraph CRAG"
     }
 

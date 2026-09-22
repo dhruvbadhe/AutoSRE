@@ -1,8 +1,8 @@
-# Autonomous Incident Response Agent
+# ⚡ AutoSRE
 
-> Agentic Corrective RAG (CRAG) system with Multi-Index Hybrid Search for automated SRE triage and remediation.
+> Autonomous Incident Response Agent powered by Corrective RAG (CRAG) & Multi-Index Hybrid Search for zero-touch SRE triage and remediation.
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-green) ![LangGraph](https://img.shields.io/badge/LangGraph-0.2%2B-orange) ![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5%2B-purple) ![License](https://img.shields.io/badge/License-MIT-lightgrey) ![Tests](https://img.shields.io/badge/Tests-7%2F7%20Passing-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-green) ![LangGraph](https://img.shields.io/badge/LangGraph-0.2%2B-orange) ![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5%2B-purple) ![License](https://img.shields.io/badge/License-MIT-lightgrey) ![Tests](https://img.shields.io/badge/Tests-7%2F7%20Passing-brightgreen) ![CLI](https://img.shields.io/badge/CLI-autosre-black)
 
 ---
 
@@ -151,31 +151,37 @@ incident-response-agent/
 
 **Prerequisites:** Python 3.9+, Docker (optional), Gemini API key
 
+### Option 1: Terminal CLI (`autosre`)
 ```bash
-# 1. Clone and set up virtual environment
-git clone https://github.com/dhruvbadhe/incident-response-agent.git
-cd incident-response-agent
+# 1. Clone and install
+git clone https://github.com/dhruvbadhe/AutoSRE.git
+cd AutoSRE
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Configure environment
 cp .env.example .env
-# Add your GEMINI_API_KEY to .env
+# Set your GEMINI_API_KEY in .env
 
-# 3. Seed the knowledge base
-python -m app.services.seed_data
+# 3. Triage an incident directly from your terminal
+autosre triage --preset oom
+autosre triage --preset db-pool
+autosre history --limit 5
+autosre benchmark
+```
 
-# 4. Run via Docker (recommended)
+### Option 2: Full Stack (API + Operator UI)
+```bash
+# Start backend and Streamlit UI with Docker
 docker-compose up
 
-# OR run locally (two terminals)
+# OR start locally in two terminals:
 uvicorn app.main:app --reload --port 8000
 streamlit run frontend/streamlit_app.py
 ```
 
-FastAPI backend: `http://localhost:8000`
-Streamlit console: `http://localhost:8501`
-OpenAPI docs: `http://localhost:8000/docs`
+* FastAPI Backend & Swagger Docs: `http://localhost:8000/docs`
+* Streamlit Operator Console: `http://localhost:8501`
 
 ---
 
