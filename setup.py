@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="autosre",
+    name="autosre-agent",
     version="1.0.0",
     description="⚡ AutoSRE: Autonomous Incident Response Agent powered by Corrective RAG (CRAG) & Multi-Index Hybrid Search",
     author="Dhruv Badhe",

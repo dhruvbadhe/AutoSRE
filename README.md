@@ -2,7 +2,7 @@
 
 > Autonomous Incident Response Agent powered by Corrective RAG (CRAG) & Multi-Index Hybrid Search for zero-touch SRE triage and remediation.
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-green) ![LangGraph](https://img.shields.io/badge/LangGraph-0.2%2B-orange) ![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5%2B-purple) ![License](https://img.shields.io/badge/License-MIT-lightgrey) ![Tests](https://img.shields.io/badge/Tests-7%2F7%20Passing-brightgreen) ![CLI](https://img.shields.io/badge/CLI-autosre-black)
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue) [![PyPI](https://img.shields.io/pypi/v/autosre-agent.svg)](https://pypi.org/project/autosre-agent/) ![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-green) ![LangGraph](https://img.shields.io/badge/LangGraph-0.2%2B-orange) ![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5%2B-purple) ![License](https://img.shields.io/badge/License-MIT-lightgrey) ![Tests](https://img.shields.io/badge/Tests-7%2F7%20Passing-brightgreen) ![CLI](https://img.shields.io/badge/CLI-autosre-black)
 
 ---
 
@@ -151,26 +151,34 @@ incident-response-agent/
 
 **Prerequisites:** Python 3.9+, Docker (optional), Gemini API key
 
-### Option 1: Terminal CLI (`autosre`)
+### Option 1: 1-Line Installation via PyPI (No Cloning Needed!)
 ```bash
-# 1. Clone and install
-git clone https://github.com/dhruvbadhe/AutoSRE.git
-cd AutoSRE
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+# Install directly from Python Package Index
+pip install autosre-agent
 
-# 2. Configure environment
-cp .env.example .env
-# Set your GEMINI_API_KEY in .env
+# Set your Gemini API key
+export GEMINI_API_KEY="your-gemini-api-key"
 
-# 3. Triage an incident directly from your terminal
+# Triage incidents directly from your terminal!
 autosre triage --preset oom
 autosre triage --preset db-pool
 autosre history --limit 5
 autosre benchmark
 ```
 
-### Option 2: Full Stack (API + Operator UI)
+### Option 2: Clone from Source
+```bash
+git clone https://github.com/dhruvbadhe/AutoSRE.git
+cd AutoSRE
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+
+# Run terminal CLI
+autosre triage --preset oom
+```
+
+### Option 3: Full Stack (API + Streamlit Operator UI)
 ```bash
 # Start backend and Streamlit UI with Docker
 docker-compose up
