@@ -103,7 +103,7 @@ with tab_trigger:
 
             with st.spinner("Agentic StateGraph executing (Ingestion -> Diagnosis -> CRAG Evaluation -> Runbook Retrieval -> Post-Mortem)..."):
                 try:
-                    res = requests.post(f"{API_BASE_URL}/api/incidents/triage", json=payload, timeout=90)
+                    res = requests.post(f"{API_BASE_URL}/api/incidents/triage", json=payload, timeout=240)
                     if res.status_code == 201:
                         data = res.json()
                         st.success(f"Incident Triage Completed! Assigned ID: {data.get('id')}")
