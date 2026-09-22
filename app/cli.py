@@ -117,11 +117,31 @@ def triage(
     preset: Optional[str] = typer.Option(None, "--preset", "-p", help="Preset scenario: oom, db-pool, dns, deadlock"),
     alert: Optional[str] = typer.Option(None, "--alert", "-a", help="Raw infrastructure alert text"),
     logs: Optional[List[str]] = typer.Option(None, "--log", "-l", help="Log lines (can provide multiple times)"),
+    file: Optional[str] = typer.Option(None, "--file", "-f", help="Path to raw log file to ingest"),
     api_url: str = typer.Option(DEFAULT_API_URL, "--api-url", help="Backend API base URL (falls back to local execution)")
 ):
-    """Run autonomous incident triage using Agentic Corrective RAG (CRAG)."""
+    """Run autonomous incident triage using Agentic Corrective RAG (CRAG). Supports pipes: cat logs.txt | autosre triage"""
     target_alert = alert
-    target_logs = logs or []
+    target_logs = list(logs or [])
+
+    # Support piping from stdin: e.g. cat crash.log | autosre triage --alert "Crash"
+    if not sys.stdin.isatty():
+        piped_lines = [line.strip() for line in sys.stdin.readlines() if line.strip()]
+        if piped_lines:
+            target_logs.extend(piped_lines)
+            if not target_alert:
+                target_alert = piped_lines[0]
+
+    # Support reading from a file
+    if file:
+        if not os.path.exists(file):
+            console.print(f"[bold red]Log file not found: {file}[/bold red]")
+            raise typer.Exit(code=1)
+        with open(file, "r", encoding="utf-8") as f:
+            file_lines = [line.strip() for line in f.readlines() if line.strip()]
+            target_logs.extend(file_lines)
+            if not target_alert and file_lines:
+                target_alert = file_lines[0]
 
     if preset:
         preset_key = preset.lower()
@@ -132,8 +152,9 @@ def triage(
         target_logs = PRESETS[preset_key]["logs"]
 
     if not target_alert:
-        console.print("[bold yellow]No alert specified. Please provide --preset or --alert.[/bold yellow]")
-        console.print("Example: [green]autosre triage --preset oom[/green]")
+        console.print("[bold yellow]No alert specified. Please provide --preset, --alert, or pipe logs via stdin.[/bold yellow]")
+        console.print("Example: [green]cat error.log | autosre triage --alert 'Pod crashed'[/green]")
+        console.print("Or:      [green]autosre triage --preset oom[/green]")
         raise typer.Exit(code=1)
 
     console.print(Panel.fit(

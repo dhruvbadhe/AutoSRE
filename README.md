@@ -159,9 +159,18 @@ pip install autosre-agent
 # Set your Gemini API key
 export GEMINI_API_KEY="your-gemini-api-key"
 
-# Triage incidents directly from your terminal!
+# Triage incidents via presets:
 autosre triage --preset oom
 autosre triage --preset db-pool
+
+# Pipe real production logs directly into AutoSRE:
+kubectl logs deployment/auth-service --tail=50 | autosre triage --alert "Auth pod crash"
+cat /var/log/nginx/error.log | autosre triage --alert "Nginx 504 Timeout"
+
+# Or point directly to a local log file:
+autosre triage --alert "Billing error" --file ./billing_crash.log
+
+# View incident history & run benchmark:
 autosre history --limit 5
 autosre benchmark
 ```
