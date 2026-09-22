@@ -5,9 +5,15 @@ __pycache__/
 .DS_Store
 chroma_db/
 incidents.db
+.pytest_cache/
 Decisions.md
 Architecture.md
 Flow.md
 Code_Explanation.md
 Logic.md
 whynotX.md
+PRD.md
+Requirements.md
+System_Architecture.md
+UI_UX.md
+Development_Plan.md
