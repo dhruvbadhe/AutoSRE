@@ -49,12 +49,72 @@ PRESETS = {
     }
 }
 
+def execute_triage_direct(raw_alert: str, raw_logs: List[str]):
+    from app.core.database import SessionLocal
+    from app.models.db_models import Incident
+    from app.graph.workflow import incident_graph
+
+    initial_state = {
+        "raw_alert": raw_alert,
+        "raw_logs": raw_logs,
+        "parsed_incident": {},
+        "retrieved_similar_incidents": [],
+        "hypothesis": "",
+        "retrieval_grade": "",
+        "retrieved_runbooks": [],
+        "proposed_fix": "",
+        "fix_confidence": 0.0,
+        "verification_result": "",
+        "escalate": False,
+        "reasoning_trace": [],
+        "post_mortem_draft": "",
+        "iteration_count": 0
+    }
+    result = incident_graph.invoke(initial_state)
+    parsed = result.get("parsed_incident", {})
+    incident_id = parsed.get("incident_id")
+    service = parsed.get("service", "unknown-service")
+
+    db = SessionLocal()
+    try:
+        if incident_id:
+            incident = db.query(Incident).filter(Incident.id == incident_id).first()
+        else:
+            incident = db.query(Incident).filter(Incident.service == service).order_by(Incident.created_at.desc()).first()
+
+        if incident:
+            return {
+                "id": incident.id,
+                "service": incident.service,
+                "severity": incident.severity,
+                "status": incident.status,
+                "hypothesis": incident.hypothesis,
+                "proposed_fix": incident.proposed_fix,
+                "fix_confidence": incident.fix_confidence,
+                "post_mortem_draft": incident.post_mortem_draft,
+                "audit_logs": [{"node_name": a.node_name, "decision_text": a.decision_text} for a in incident.audit_logs]
+            }
+    finally:
+        db.close()
+
+    return {
+        "id": incident_id or "local-exec",
+        "service": service,
+        "severity": parsed.get("severity", "CRITICAL"),
+        "status": "ESCALATED" if result.get("escalate") else "RESOLVED",
+        "hypothesis": result.get("hypothesis", ""),
+        "proposed_fix": result.get("proposed_fix", ""),
+        "fix_confidence": result.get("fix_confidence", 0.0),
+        "post_mortem_draft": result.get("post_mortem_draft", ""),
+        "audit_logs": [{"node_name": "pipeline", "decision_text": trace} for trace in result.get("reasoning_trace", [])]
+    }
+
 @app.command()
 def triage(
     preset: Optional[str] = typer.Option(None, "--preset", "-p", help="Preset scenario: oom, db-pool, dns, deadlock"),
     alert: Optional[str] = typer.Option(None, "--alert", "-a", help="Raw infrastructure alert text"),
     logs: Optional[List[str]] = typer.Option(None, "--log", "-l", help="Log lines (can provide multiple times)"),
-    api_url: str = typer.Option(DEFAULT_API_URL, "--api-url", help="Backend API base URL")
+    api_url: str = typer.Option(DEFAULT_API_URL, "--api-url", help="Backend API base URL (falls back to local execution)")
 ):
     """Run autonomous incident triage using Agentic Corrective RAG (CRAG)."""
     target_alert = alert
@@ -85,24 +145,32 @@ def triage(
         "raw_logs": target_logs
     }
 
+    data = None
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         transient=True
     ) as progress:
-        progress.add_task(description="[yellow]Executing 7-node LangGraph CRAG pipeline (Retrieval -> Diagnosis -> Verification)...[/yellow]", total=None)
+        task = progress.add_task(description="[yellow]Executing 7-node LangGraph CRAG pipeline (Retrieval -> Diagnosis -> Verification)...[/yellow]", total=None)
+        
+        # Try REST API first
         try:
             with httpx.Client(timeout=240.0) as client:
                 res = client.post(f"{api_url}/api/incidents/triage", json=payload)
-        except Exception as e:
-            console.print(f"[bold red]Failed to connect to backend at {api_url}: {e}[/bold red]")
-            raise typer.Exit(code=1)
+                if res.status_code == 201:
+                    data = res.json()
+        except Exception:
+            pass
 
-    if res.status_code != 201:
-        console.print(f"[bold red]Triage failed ({res.status_code}): {res.text}[/bold red]")
-        raise typer.Exit(code=1)
+        # If backend server is not running, run directly via local graph engine!
+        if data is None:
+            progress.update(task, description="[cyan]Server not active; executing directly via embedded LangGraph runtime...[/cyan]")
+            try:
+                data = execute_triage_direct(target_alert, target_logs)
+            except Exception as e:
+                console.print(f"[bold red]Triage execution failed: {e}[/bold red]")
+                raise typer.Exit(code=1)
 
-    data = res.json()
     incident_id = data.get("id")
     status = data.get("status")
     confidence = data.get("fix_confidence", 0.0)
@@ -155,18 +223,37 @@ def history(
     api_url: str = typer.Option(DEFAULT_API_URL, "--api-url", help="Backend API base URL")
 ):
     """View historical incidents logged by AutoSRE."""
+    incidents = []
     try:
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=5.0) as client:
             res = client.get(f"{api_url}/api/incidents/")
-    except Exception as e:
-        console.print(f"[bold red]Failed to reach backend at {api_url}: {e}[/bold red]")
-        raise typer.Exit(code=1)
+            if res.status_code == 200:
+                incidents = res.json()
+    except Exception:
+        pass
 
-    if res.status_code != 200:
-        console.print(f"[bold red]Failed to fetch incidents: {res.text}[/bold red]")
-        raise typer.Exit(code=1)
+    if not incidents:
+        # Fall back to local SQLite DB directly!
+        try:
+            from app.core.database import SessionLocal
+            from app.models.db_models import Incident
+            db = SessionLocal()
+            db_incs = db.query(Incident).order_by(Incident.created_at.desc()).limit(limit).all()
+            incidents = [
+                {
+                    "id": inc.id,
+                    "service": inc.service,
+                    "severity": inc.severity,
+                    "status": inc.status,
+                    "fix_confidence": inc.fix_confidence,
+                    "hypothesis": inc.hypothesis
+                }
+                for inc in db_incs
+            ]
+            db.close()
+        except Exception:
+            pass
 
-    incidents = res.json()
     if not incidents:
         console.print("[yellow]No incidents recorded yet.[/yellow]")
         return
