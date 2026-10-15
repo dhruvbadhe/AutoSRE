@@ -1,4 +1,3 @@
-import pytest
 from app.services.vector_store import vector_store
 
 def test_reciprocal_rank_fusion_math():

@@ -1,7 +1,6 @@
 import os
 import streamlit as st
 import requests
-import json
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 

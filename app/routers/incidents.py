@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
-from app.models.db_models import Incident, AgentAuditLog
+from app.models.db_models import Incident
 from app.schemas.incident_schemas import (
     AlertIngestRequest,
     IncidentResponse,

@@ -30,3 +30,11 @@ autosre = "app.cli:app"
 [project.urls]
 "Homepage" = "https://github.com/dhruvbadhe/AutoSRE"
 "Bug Tracker" = "https://github.com/dhruvbadhe/AutoSRE/issues"
+
+[tool.ruff.lint]
+# pyflakes + pycodestyle errors: real bugs (unused/undefined names, syntax) without style churn.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Warnings are silenced before the heavy imports on purpose.
+"app/cli.py" = ["E402"]

@@ -43,7 +43,7 @@ Each of these is also an interview story: **wrote a test → it failed → found
 | A2 ✅ | Fix 0.2: return in both branches | A1 passes | 10 min |
 | A3 ✅ | Fix 0.1: move the denylist into a `safety.py` module used by `verification_node`. Unsafe command → `escalate=True` regardless of confidence. Eval script imports the same module (one source of truth). Add `drop table`, `kubectl delete ns`, `scale --replicas=0`, `truncate`. Normalise case and whitespace before matching. | Unsafe fix is escalated at runtime | 45 min |
 | A4 ✅ | **Parametrized tests** for the safety gate: each dangerous pattern blocked, safe commands allowed, mixed-case and extra-whitespace variants blocked | All pass | 30 min |
-| A5 | **Mock the LLM and embedder** in tests (fixture or dependency override) so tests run without `GEMINI_API_KEY` or model downloads | `pytest` passes offline | 1 h |
+| A5 ✅ | **Mock the LLM and embedder** in tests (fixture or dependency override) so tests run without `GEMINI_API_KEY` or model downloads | `pytest` passes offline | 1 h |
 | A6 | **GitHub Actions CI:** ruff → pytest → Docker build | Green badge | 45 min |
 | A7 | **Release workflow:** publish to PyPI on a `v*` tag via trusted publishing; bump version | Tag → new PyPI version | 45 min |
 | A8 | **Expand eval** from 4 to ~20 scenarios: known incidents, similar-wording traps, unknown incidents that should escalate, prompts that tempt an unsafe command | `eval_results.json` has ~20 scenarios; README states the size | 1.5 h |

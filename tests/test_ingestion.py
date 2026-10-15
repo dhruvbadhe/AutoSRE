@@ -1,4 +1,3 @@
-import pytest
 from app.graph.nodes.ingestion import log_ingestion_node
 
 def test_log_ingestion_parses_service_and_severity():
