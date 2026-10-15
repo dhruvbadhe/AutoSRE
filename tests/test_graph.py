@@ -1,8 +1,6 @@
 import json
 
-import pytest
-
-from app.core.database import Base, SessionLocal, engine
+from app.core.database import SessionLocal
 from app.graph.workflow import incident_graph
 from app.models.db_models import Incident
 
@@ -10,11 +8,6 @@ ALERT = {
     "raw_alert": "CRITICAL: auth-service pod OOMKilled in production namespace",
     "raw_logs": ["2026-09-22T10:00:01Z [CRITICAL] auth-service java.lang.OutOfMemoryError: Java heap space"],
 }
-
-
-@pytest.fixture(autouse=True)
-def tables():
-    Base.metadata.create_all(bind=engine)
 
 
 def run_graph():

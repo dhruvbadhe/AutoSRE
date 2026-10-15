@@ -28,19 +28,27 @@ This agent solves both with a 7-node LangGraph state machine, multi-index hybrid
 
 ---
 
-## Benchmark Results
+## Evaluation
 
-**Eval size: 4 hand-written scenarios, 1 run** (`eval/run_eval.py`, results in `eval/eval_results.json`). That is a smoke test, not a benchmark: one miss moves a metric by 25 points.
+**Eval set: 20 hand-written scenarios** in `eval/run_eval.py`. Each run goes through the real graph and the real Gemini API, and the full set is repeated **3 times** by default (`--runs`) because LLM output varies:
 
-| Metric | Result | What it counts |
+| Category | Count | Expected behaviour |
 |:---|:---|:---|
-| Retrieval Recall@3 | 3/3 | Known scenarios where the right service is in the top 3 incidents. The unknown scenario has no right answer and is left out. |
-| CRAG routing | 4/4 | Known incidents graded sufficient; the unknown one went through the query rewriter |
-| Root-cause keyword in hypothesis | 4/4 | Expected keyword (e.g. `memory`) appears in the LLM hypothesis |
-| Generated fix matched the denylist | 0/4 | Checked after the run with the eval's old 5-pattern list (now replaced by `app/services/safety.py`) |
-| Latency per scenario | median 10.4 s, max 78.2 s | Gemini free tier; the max is the unknown scenario, which loops through the query rewriter |
+| Known | 8 | Matches a seeded incident: right incident in the top 3, graded sufficient, not escalated |
+| Trap | 4 | Shares a service or error string with a seeded incident, but the cause differs: escalate |
+| Unknown | 4 | Nothing similar in the knowledge base: CRAG rewrite loop, escalate |
+| Unsafe-tempting | 4 | Wording invites a destructive fix (wipe disk, delete namespace, scale to 0, clear a table): escalate |
 
-These results predate the runtime safety gate and the `verification_node` fix. In that run the unknown scenario (`eval-004`) was **not** escalated because of the bug fixed in PR #3. The eval expansion in the plan (A8) grows the set to ~20 scenarios and reports mean/min over 3 runs.
+Metrics per run, reported as mean and min over the runs:
+- **Retrieval Recall@3:** known scenarios only, judged on the incidents the agent actually retrieved.
+- **CRAG routing accuracy.**
+- **Root-cause keyword rate.**
+- **Escalation accuracy:** escalate vs `should_escalate`.
+- **Unsafe fixes proposed:** how often the gate had to step in.
+- **Unsafe fixes that reached output un-escalated:** must be 0. Any such case makes `eval/run_eval.py` exit 1.
+- **Median latency.**
+
+**Status: the 20-scenario set has not been run yet.** `eval/eval_results.json` still holds the earlier 4-scenario, single-run smoke test. That run predates the runtime safety gate and the `verification_node` fix: Recall@3 3/3, CRAG routing 4/4, median latency 10.4 s. In it, the unknown scenario (`eval-004`) was **not** escalated because of the bug fixed in PR #3. Run `python eval/run_eval.py` with `GEMINI_API_KEY` set to regenerate the results. One run makes up to ~150 Gemini calls (4 per known scenario, up to 10 when the rewrite loop runs), so expect free-tier rate limits.
 
 ---
 
@@ -274,11 +282,11 @@ Tavily requires credit card registration even for the free tier. For an open-sou
 pip install -r requirements.txt -r requirements-dev.txt
 ruff check .
 pytest --cov=app
-# 44 passed, 1 xfailed (documented denylist bypass), 58% coverage of app/
+# 48 passed, 1 xfailed (documented denylist bypass)
 
 # Eval: calls the real Gemini API and needs GEMINI_API_KEY
-python eval/run_eval.py
-# Retrieval Recall@3, CRAG routing, root-cause keyword, denylist matches
+python eval/run_eval.py --runs 3
+# 20 scenarios x 3 runs; mean/min per metric, median latency; exits 1 if an unsafe fix reaches output
 ```
 
 ---
