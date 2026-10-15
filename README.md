@@ -2,7 +2,7 @@
 
 > Autonomous Incident Response Agent powered by Corrective RAG (CRAG) & Multi-Index Hybrid Search for zero-touch SRE triage and remediation.
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue) [![PyPI](https://img.shields.io/pypi/v/autosre-agent.svg)](https://pypi.org/project/autosre-agent/) ![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-green) ![LangGraph](https://img.shields.io/badge/LangGraph-0.2%2B-orange) ![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5%2B-purple) ![License](https://img.shields.io/badge/License-MIT-lightgrey) ![Tests](https://img.shields.io/badge/Tests-7%2F7%20Passing-brightgreen) ![CLI](https://img.shields.io/badge/CLI-autosre-black)
+[![CI](https://github.com/dhruvbadhe/AutoSRE/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dhruvbadhe/AutoSRE/actions/workflows/ci.yml) ![Python](https://img.shields.io/badge/Python-3.9%2B-blue) [![PyPI](https://img.shields.io/pypi/v/autosre-agent.svg)](https://pypi.org/project/autosre-agent/) ![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-green) ![LangGraph](https://img.shields.io/badge/LangGraph-0.2%2B-orange) ![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5%2B-purple) ![License](https://img.shields.io/badge/License-MIT-lightgrey) ![CLI](https://img.shields.io/badge/CLI-autosre-black)
 
 ---
 
@@ -14,7 +14,7 @@ Naive RAG fails here for two structural reasons:
 - **Dense vector search misses exact tokens.** To an embedding model, `HTTP 504` and `HTTP 502` are semantically adjacent. To an SRE, they point to entirely different failure modes.
 - **Single-index retrieval conflates diagnosis with remediation.** Dumping logs and runbooks into one collection causes the LLM to hallucinate fixes before it has confirmed a root cause.
 
-This agent solves both with a 7-node LangGraph state machine, multi-index hybrid retrieval (BM25 + dense embeddings fused via RRF), and a pre-flight verification gate that blocks any remediation command below a 0.60 confidence threshold.
+This agent solves both with a 7-node LangGraph state machine, multi-index hybrid retrieval (BM25 + dense embeddings fused via RRF), and a pre-flight verification gate that escalates to a human any fix that matches a destructive-command pattern (whatever its confidence) or scores below 0.60 confidence.
 
 ---
 
@@ -30,15 +30,17 @@ This agent solves both with a 7-node LangGraph state machine, multi-index hybrid
 
 ## Benchmark Results
 
-Measured against a curated evaluation suite of 4 benchmark incident scenarios (`eval/run_eval.py`):
+**Eval size: 4 hand-written scenarios, 1 run** (`eval/run_eval.py`, results in `eval/eval_results.json`). That is a smoke test, not a benchmark: one miss moves a metric by 25 points.
 
-| Metric | Result | Naive RAG Baseline |
+| Metric | Result | What it counts |
 |:---|:---|:---|
-| **Retrieval Recall@3** | **100.0%** | ~62.0% (pure dense vector) |
-| **CRAG Routing Precision** | **100.0%** | N/A (linear chains can't loop) |
-| **Remediation Command Safety** | **100.0%** | High hallucination risk |
-| **Simulated MTTR Reduction** | **~73%** | Manual on-call lookup |
-| **End-to-End Latency** | **< 12s** | 15–45 min (manual) |
+| Retrieval Recall@3 | 3/3 | Known scenarios where the right service is in the top 3 incidents. The unknown scenario has no right answer and is left out. |
+| CRAG routing | 4/4 | Known incidents graded sufficient; the unknown one went through the query rewriter |
+| Root-cause keyword in hypothesis | 4/4 | Expected keyword (e.g. `memory`) appears in the LLM hypothesis |
+| Generated fix matched the denylist | 0/4 | Checked after the run with the eval's old 5-pattern list (now replaced by `app/services/safety.py`) |
+| Latency per scenario | median 10.4 s, max 78.2 s | Gemini free tier; the max is the unknown scenario, which loops through the query rewriter |
+
+These results predate the runtime safety gate and the `verification_node` fix. In that run the unknown scenario (`eval-004`) was **not** escalated because of the bug fixed in PR #3. The eval expansion in the plan (A8) grows the set to ~20 scenarios and reports mean/min over 3 runs.
 
 ---
 
@@ -59,19 +61,7 @@ Measured against a curated evaluation suite of 4 benchmark incident scenarios (`
                                     │
                                     ▼
 +-----------------------------------------------------------------------------------+
-|                          LANGGRAPH CRAG ENGINE                                    |
-|                                                                                   |
-|  [Node 1: Ingestion] ──> [Node 2: Diagnosis] ──> [Node 3: Grader]                |
-|                                  ▲                       │                        |
-|                                  │  INSUFFICIENT         │ SUFFICIENT             |
-|                         [Node 4: Query Rewriter]         ▼                        |
-|                                  ▲              [Node 5: Fix Proposal]            |
-|                                  │                       │                        |
-|                          [DuckDuckGo Fallback]           ▼                        |
-|                          (max 3 iterations)     [Node 6: Verification Gate]       |
-|                                                          │                        |
-|                                                          ▼                        |
-|                                                 [Node 7: Output + Persist]        |
+|                LANGGRAPH CRAG ENGINE (7 nodes, see the agent graph below)         |
 +-----------------------------------------------------------------------------------+
           │                                                    │
           ▼                                                    ▼
@@ -92,6 +82,34 @@ RRF_Score(d) = Σ [ w_m / (k + r_m(d)) ]
   Sparse weight = 0.30  (exact error token matching)
   k             = 60    (rank smoothing constant)
 ```
+
+### Agent graph (`app/graph/workflow.py`)
+
+```mermaid
+flowchart TD
+    A["1 · log_ingestion<br/>regex: service, severity, error type"] --> B["2 · diagnosis<br/>search incident_logs + LLM hypothesis"]
+    B --> C{"3 · grader<br/>LLM: does the evidence support it?"}
+    C -- "INSUFFICIENT and iteration < 3" --> D["4 · query_rewriter<br/>LLM rewrites query + DuckDuckGo"]
+    D --> B
+    C -- "SUFFICIENT, or 3rd iteration" --> E["5 · fix_proposal<br/>search runbooks + LLM fix + confidence"]
+    E --> F{"6 · verification<br/>safety gate"}
+    F -- "destructive pattern → escalate<br/>confidence < 0.60 → escalate<br/>otherwise → resolved" --> G["7 · output<br/>post-mortem + save to SQLite"]
+```
+
+### Safety gate and its limits
+
+`verification_node` runs two checks before anything is marked resolved:
+
+1. **Destructive-command check** (`app/services/safety.py`). The fix text is lowercased and whitespace is collapsed, then matched against word-boundary patterns: `rm -rf`/`-fr`, `drop database`, `drop table`, `truncate`, `mkfs`, `dd if=/dev/zero`, fork bomb, `kubectl delete ns/namespace`, `scale … --replicas=0`. A match **always escalates**, even at 0.99 confidence. The eval script imports the same module, so offline scoring and the runtime gate can't drift apart.
+2. **Confidence check:** below 0.60 escalates.
+
+Covered by parametrized tests (`tests/test_safety.py`), plus end-to-end graph tests (`tests/test_graph.py`) that run the real graph with a fake LLM.
+
+**What it does not do:**
+- **A denylist can be bypassed.** Shell quoting (`'r''m' -rf /`), variables, `$(...)`, base64 or `eval` all get past a text match. `tests/test_safety.py` keeps this visible as a strict `xfail`.
+- **False positives escalate.** A fix that says "do not truncate the table" is escalated. That's the safe direction, but it is noise.
+- **It only reads text.** AutoSRE never executes commands, so the gate decides whether a human must review a fix. It doesn't sandbox anything.
+- **Next step:** an allowlist of known-safe verbs (`kubectl get/describe/logs`, `rollout restart`), plus a server-side dry run (`kubectl --dry-run=server`) before any command is offered for approval.
 
 ---
 
@@ -121,8 +139,7 @@ incident-response-agent/
 │   │   └── database.py        # SQLAlchemy engine and session factory
 │   ├── graph/
 │   │   ├── state.py           # IncidentState TypedDict — immutable data snapshot
-│   │   ├── edges.py           # Conditional routing logic between nodes
-│   │   ├── workflow.py        # Compiled LangGraph StateGraph with cycle guard
+│   │   ├── workflow.py        # Compiled LangGraph StateGraph, routing and cycle guard
 │   │   └── nodes/             # One file per node (ingestion, diagnosis, grader, etc.)
 │   ├── models/
 │   │   └── db_models.py       # SQLAlchemy ORM models (Incident, Runbook, AgentAuditLog)
@@ -133,13 +150,15 @@ incident-response-agent/
 │   ├── services/
 │   │   ├── embedder.py        # Direct httpx REST client for Gemini embeddings (batched, N=16)
 │   │   ├── vector_store.py    # ChromaDB multi-index manager + RRF fusion
+│   │   ├── safety.py          # Destructive-command denylist used by the runtime gate and the eval
 │   │   └── seed_data.py       # Seeds incident logs and runbooks into both databases
 │   └── main.py                # FastAPI app entry point with CORS and health check
 ├── frontend/
 │   └── streamlit_app.py       # Operator console UI
 ├── eval/
 │   └── run_eval.py            # Quantitative benchmark suite
-├── tests/                     # pytest unit tests (7/7 passing)
+├── tests/                     # pytest, fully offline (fake LLM/embedder, network blocked)
+├── .github/workflows/ci.yml   # ruff → pytest + coverage → Docker build → CLI smoke test
 ├── Dockerfile
 ├── docker-compose.yml
 └── .env.example
@@ -251,21 +270,23 @@ Tavily requires credit card registration even for the free tier. For an open-sou
 ## Testing
 
 ```bash
-# Unit tests (regex parser, RRF math, FastAPI endpoints)
-python -m pytest -v tests/
-# 7/7 passing in ~2.3s
+# Tests: no API key, no network, no model downloads
+pip install -r requirements.txt -r requirements-dev.txt
+ruff check .
+pytest --cov=app
+# 44 passed, 1 xfailed (documented denylist bypass), 58% coverage of app/
 
-# Quantitative benchmark suite
+# Eval: calls the real Gemini API and needs GEMINI_API_KEY
 python eval/run_eval.py
-# Validates Recall@3, CRAG routing precision, command safety
+# Retrieval Recall@3, CRAG routing, root-cause keyword, denylist matches
 ```
 
 ---
 
 ## Limitations & What I'd Do Differently
 
-- **Eval dataset is curated, not production-sampled.** 100% Recall@3 on 10 hand-crafted scenarios doesn't guarantee performance on novel log formats. A real deployment would need a larger, messier evaluation set.
-- **BM25 index is in-memory.** On cold start after a container restart, BM25 is rebuilt from ChromaDB metadata. Under high seed volume this adds startup latency. A persistent BM25 index (e.g. serialized to disk) would fix this.
+- **Eval dataset is curated, not production-sampled.** 3/3 Recall@3 on 4 hand-written scenarios doesn't guarantee performance on novel log formats. A real deployment would need a larger, messier evaluation set.
+- **BM25 index is in-memory and only built by the seed script.** `vector_store.add_incidents/add_runbooks` build it, and only `seed_data.py` calls them. A fresh API, CLI or eval process therefore starts with no BM25 index, and retrieval falls back to dense-only. The fix is to rebuild BM25 from ChromaDB on startup, or persist it to disk.
 - **No authentication on the API.** The `/triage` endpoint is open. For a real deployment, add API key middleware or OAuth2 before exposing it to webhook sources.
 - **Gemini quota dependency.** Free-tier `gemini-3.5-flash-lite` has daily request limits. Under heavy concurrent load, the retry backoff degrades end-to-end latency. A paid tier or local model fallback (Ollama) would decouple this.
 - **Future:** Real-time bidirectional Slack/PagerDuty socket integration, RBAC for multi-tenant deployments, and autonomous `kubectl` execution against live clusters with human-in-the-loop approval gates.
