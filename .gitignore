@@ -19,3 +19,5 @@ UI_UX.md
 Development_Plan.md
 *.egg-info/
 dist/
+build/
+.coverage
