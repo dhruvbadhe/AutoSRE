@@ -38,7 +38,7 @@ Each of these is also an interview story: **wrote a test → it failed → found
 
 | # | Task | Done when | Time |
 |---|---|---|---|
-| A0.5 | Fix `/api/incidents/metrics` 500 (found during setup): `get_metrics` returns `resolved_incidents`/`escalated_incidents`/`mean_time_to_resolution_seconds`, but `MetricsResponse` expects `resolved_count`/`escalated_count`/`open_count`/`mttr_seconds`. Failing test first, then minimal fix in the handler. No xfail. | `test_metrics_endpoint` passes | 15 min |
+| A0.5 ✅ | Fix `/api/incidents/metrics` 500 (found during setup): `get_metrics` returns `resolved_incidents`/`escalated_incidents`/`mean_time_to_resolution_seconds`, but `MetricsResponse` expects `resolved_count`/`escalated_count`/`open_count`/`mttr_seconds`. Failing test first, then minimal fix in the handler. No xfail. | `test_metrics_endpoint` passes | 15 min |
 | A1 | Write a failing test for 0.2 (high confidence → node returns `verification_result="resolved"`) | Test fails on current code | 15 min |
 | A2 | Fix 0.2: return in both branches | A1 passes | 10 min |
 | A3 | Fix 0.1: move the denylist into a `safety.py` module used by `verification_node`. Unsafe command → `escalate=True` regardless of confidence. Eval script imports the same module (one source of truth). Add `drop table`, `kubectl delete ns`, `scale --replicas=0`, `truncate`. Normalise case and whitespace before matching. | Unsafe fix is escalated at runtime | 45 min |
