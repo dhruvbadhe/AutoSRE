@@ -74,6 +74,7 @@ def get_metrics(db: Session = Depends(get_db)):
     total = db.query(Incident).count()
     resolved = db.query(Incident).filter(Incident.status == "RESOLVED").count()
     escalated = db.query(Incident).filter(Incident.status == "ESCALATED").count()
+    open_count = db.query(Incident).filter(Incident.status == "OPEN").count()
 
     incidents = db.query(Incident).filter(
         Incident.status == "RESOLVED",
@@ -92,9 +93,10 @@ def get_metrics(db: Session = Depends(get_db)):
 
     return {
         "total_incidents": total,
-        "resolved_incidents": resolved,
-        "escalated_incidents": escalated,
-        "mean_time_to_resolution_seconds": round(mttr_seconds, 2)
+        "resolved_count": resolved,
+        "escalated_count": escalated,
+        "open_count": open_count,
+        "mttr_seconds": round(mttr_seconds, 2)
     }
 
 @router.get("/{incident_id}", response_model=IncidentDetailResponse)
