@@ -14,3 +14,10 @@ def test_low_confidence_fix_is_escalated():
 
     assert output["verification_result"] == "unresolved"
     assert output["escalate"] is True
+
+
+def test_unsafe_fix_is_escalated_even_with_high_confidence():
+    output = verification_node({"proposed_fix": "Run: kubectl delete namespace production", "fix_confidence": 0.99})
+
+    assert output["verification_result"] == "unresolved"
+    assert output["escalate"] is True
