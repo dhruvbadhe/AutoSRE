@@ -15,9 +15,7 @@ def test_metrics_endpoint():
     response = client.get("/api/incidents/metrics")
     assert response.status_code == 200
     data = response.json()
-    assert "total_incidents" in data
-    assert "resolved_count" in data
-    assert "mttr_seconds" in data
+    assert set(data) == {"total_incidents", "resolved_count", "escalated_count", "open_count", "mttr_seconds"}
     assert data.get("mttr_seconds") >= 0.0
 
 def test_list_incidents_endpoint():
