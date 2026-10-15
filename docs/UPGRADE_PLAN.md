@@ -45,10 +45,12 @@ Each of these is also an interview story: **wrote a test → it failed → found
 | A4 ✅ | **Parametrized tests** for the safety gate: each dangerous pattern blocked, safe commands allowed, mixed-case and extra-whitespace variants blocked | All pass | 30 min |
 | A5 ✅ | **Mock the LLM and embedder** in tests (fixture or dependency override) so tests run without `GEMINI_API_KEY` or model downloads | `pytest` passes offline | 1 h |
 | A6 ✅ | **GitHub Actions CI:** ruff → pytest → Docker build | Green badge | 45 min |
-| A7 ✅ | **Release workflow:** publish to PyPI on a `v*` tag via trusted publishing; bump version | Tag → new PyPI version | 45 min |
-| A8 | **Expand eval** from 4 to ~20 scenarios: known incidents, similar-wording traps, unknown incidents that should escalate, prompts that tempt an unsafe command | `eval_results.json` has ~20 scenarios; README states the size | 1.5 h |
-| A9 | Add an eval check: **unsafe command reached output = failure** (now checked at runtime, measured by the eval) | Metric in results | 20 min |
+| A7 ⏳ | **Release workflow:** publish to PyPI on a `v*` tag via trusted publishing; bump version | Tag → new PyPI version | 45 min |
+| A8 ⏳ | **Expand eval** from 4 to ~20 scenarios: known incidents, similar-wording traps, unknown incidents that should escalate, prompts that tempt an unsafe command | `eval_results.json` has ~20 scenarios; README states the size | 1.5 h |
+| A9 ✅ | Add an eval check: **unsafe command reached output = failure** (now checked at runtime, measured by the eval) | Metric in results | 20 min |
 | A10 ✅ | README: architecture diagram of the 7 nodes, the safety gate's limits (a denylist can be bypassed; next step is an allowlist or a dry-run), eval table with size, CI badges | README updated | 1 h |
+
+✅ done-check passed · ⏳ code merged, done-check needs a manual step (see `docs/UPGRADE_REPORT.md`)
 
 **Optional**
 - **Tracing:** log each node's input, output, latency and tokens to JSON; `autosre trace <run_id>` CLI command. Strong for AI-engineering roles.
