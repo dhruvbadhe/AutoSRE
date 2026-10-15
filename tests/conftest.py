@@ -18,8 +18,15 @@ os.environ["ANONYMIZED_TELEMETRY"] = "False"
 from app.services import llm  # noqa: E402
 from app.services.embedder import embedder  # noqa: E402
 from app.graph.nodes import rewriter  # noqa: E402
+from app.core.database import Base, engine  # noqa: E402
+import app.models.db_models  # noqa: E402,F401  (registers tables on Base)
 
 _real_connect = socket.socket.connect
+
+
+@pytest.fixture(scope="session", autouse=True)
+def db_tables():
+    Base.metadata.create_all(bind=engine)
 
 
 @pytest.fixture(autouse=True)
