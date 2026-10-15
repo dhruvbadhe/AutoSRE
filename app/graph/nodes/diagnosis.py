@@ -40,8 +40,10 @@ Do not recommend fixes yet; focus strictly on root cause diagnosis."""
     )
     current_trace = state.get("reasoning_trace", [])
     updated_trace = current_trace + [reasoning_step]
+    # Carry the query rewriter's web results forward; replacing them here meant the grader never saw the CRAG fallback.
+    web_results = [inc for inc in state.get("retrieved_similar_incidents", []) if str(inc.get("id", "")).startswith("web-")]
     return {
-        "retrieved_similar_incidents": retrieved_incidents,
+        "retrieved_similar_incidents": retrieved_incidents + web_results,
         "hypothesis": hypothesis,
         "reasoning_trace": updated_trace
     }
