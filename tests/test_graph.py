@@ -1,6 +1,8 @@
 import json
+from types import SimpleNamespace
 
 from app.core.database import SessionLocal
+from app.graph.nodes import grader, rewriter
 from app.graph.workflow import incident_graph
 from app.models.db_models import Incident
 
@@ -45,3 +47,18 @@ def test_insufficient_evidence_takes_the_crag_rewrite_loop(fake_llm):
 
     assert result["iteration_count"] == 3
     assert sum("Query Rewriter Node" in step for step in result["reasoning_trace"]) == 2
+
+
+def test_web_search_results_reach_the_grader(fake_llm, monkeypatch):
+    fake_llm["grader"] = "INSUFFICIENT"
+    web_hit = {"title": "Heap leak in JWT cache", "body": "WEB-SNIPPET-7731 bound the token cache", "href": "https://example.com/fix"}
+    monkeypatch.setattr(rewriter, "DDGS", lambda: SimpleNamespace(text=lambda query, max_results: [web_hit]))
+    grader_prompts = []
+    real_generate = grader.generate_text
+    monkeypatch.setattr(grader, "generate_text", lambda prompt: grader_prompts.append(prompt) or real_generate(prompt))
+
+    run_graph()
+
+    assert len(grader_prompts) == 3
+    assert "WEB-SNIPPET-7731" not in grader_prompts[0]
+    assert all("WEB-SNIPPET-7731" in prompt for prompt in grader_prompts[1:])

@@ -49,7 +49,7 @@ Each of these is also an interview story: **wrote a test → it failed → found
 | A8 ⏳ | **Expand eval** from 4 to ~20 scenarios: known incidents, similar-wording traps, unknown incidents that should escalate, prompts that tempt an unsafe command | `eval_results.json` has ~20 scenarios; README states the size | 1.5 h |
 | A9 ✅ | Add an eval check: **unsafe command reached output = failure** (now checked at runtime, measured by the eval) | Metric in results | 20 min |
 | A10 ✅ | README: architecture diagram of the 7 nodes, the safety gate's limits (a denylist can be bypassed; next step is an allowlist or a dry-run), eval table with size, CI badges | README updated | 1 h |
-| B1 | BM25 index built/loaded whenever the vector store starts (API, CLI, eval), so hybrid retrieval is real | Failing test first: a fresh store returns a BM25-only match for an exact error string | 45 min |
+| B1 ✅ | BM25 index built/loaded whenever the vector store starts (API, CLI, eval), so hybrid retrieval is real | Failing test first: a fresh store returns a BM25-only match for an exact error string | 45 min |
 | B2 | Web-search results from the query rewriter survive into the grader's input | Failing test first: after rewrite → search, the grader receives the search results | 30 min |
 | B3 | CLI tests with `typer.testing.CliRunner`, API mocked: piped stdin, `--help`, API down → clear error + non-zero exit | Tests pass in CI | 45 min |
 | B4 | Bump to 1.0.2 (pyproject.toml + setup.py) and add a CHANGELOG entry (A0.5, A1–A4, B1, B2). No tag | Version bumped, CHANGELOG present | 15 min |
