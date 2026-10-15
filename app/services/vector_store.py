@@ -19,10 +19,19 @@ class MultiIndexVectorStore:
             metadata={"hnsw:space": "cosine"}
         )
 
-        self.incident_bm25 = None
-        self.incident_corpus = []
-        self.runbook_bm25 = None
-        self.runbook_corpus = []
+        # Rebuilt from what is already on disk, so every process (API, CLI, eval) gets hybrid search, not just the seed script.
+        self.incident_corpus, self.incident_bm25 = self._load_bm25(self.incident_collection)
+        self.runbook_corpus, self.runbook_bm25 = self._load_bm25(self.runbook_collection)
+
+    @staticmethod
+    def _load_bm25(collection):
+        data = collection.get(include=["documents", "metadatas"])
+        corpus = [
+            {"id": doc_id, "document": document, "metadata": metadata}
+            for doc_id, document, metadata in zip(data["ids"], data["documents"], data["metadatas"])
+        ]
+        bm25 = BM25Okapi([item["document"].lower().split() for item in corpus]) if corpus else None
+        return corpus, bm25
 
     def _reciprocal_rank_fusion(
         self,
@@ -33,14 +42,16 @@ class MultiIndexVectorStore:
         scores = {}
         doc_map = {}
 
+        # Equal weights (standard RRF): with the old 0.7/0.3 split a BM25-only hit (0.3/61) could never beat
+        # the 3rd dense hit (0.7/63), so exact error-string matches were dropped by the top_k cut.
         for rank, item in enumerate(dense_results):
             doc_id = item["id"]
-            scores[doc_id] = scores.get(doc_id, 0.0) + (1.0 / (k + rank + 1)) * 0.7
+            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank + 1)
             doc_map[doc_id] = item
 
         for rank, item in enumerate(sparse_results):
             doc_id = item["id"]
-            scores[doc_id] = scores.get(doc_id, 0.0) + (1.0 / (k + rank + 1)) * 0.3
+            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank + 1)
             if doc_id not in doc_map:
                 doc_map[doc_id] = item
 
@@ -71,9 +82,7 @@ class MultiIndexVectorStore:
             embeddings=embeddings
         )
 
-        self.incident_corpus = incidents
-        tokenized_corpus = [doc.lower().split() for doc in documents]
-        self.incident_bm25 = BM25Okapi(tokenized_corpus)
+        self.incident_corpus, self.incident_bm25 = self._load_bm25(self.incident_collection)
 
     def add_runbooks(self, runbooks: List[Dict[str, Any]]):
         if not runbooks:
@@ -98,9 +107,7 @@ class MultiIndexVectorStore:
             embeddings=embeddings
         )
 
-        self.runbook_corpus = runbooks
-        tokenized_corpus = [doc.lower().split() for doc in documents]
-        self.runbook_bm25 = BM25Okapi(tokenized_corpus)
+        self.runbook_corpus, self.runbook_bm25 = self._load_bm25(self.runbook_collection)
 
     def search_incidents(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
         query_embedding = embedder.embed_query(query)
@@ -123,17 +130,8 @@ class MultiIndexVectorStore:
             tokens = query.lower().split()
             scores = self.incident_bm25.get_scores(tokens)
             top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
-            for idx in top_indices:
-                inc = self.incident_corpus[idx]
-                sparse_results.append({
-                    "id": inc["id"],
-                    "document": f"{inc['service']} {inc['error_type']} {inc['log_snippet']}",
-                    "metadata": {
-                        "service": inc["service"],
-                        "error_type": inc["error_type"],
-                        "root_cause": inc.get("root_cause", "")
-                    }
-                })
+            # A zero BM25 score means no shared token, so it is not a lexical match.
+            sparse_results = [self.incident_corpus[idx] for idx in top_indices if scores[idx] > 0]
 
         return self._reciprocal_rank_fusion(dense_results, sparse_results)[:top_k]
 
@@ -158,17 +156,7 @@ class MultiIndexVectorStore:
             tokens = query.lower().split()
             scores = self.runbook_bm25.get_scores(tokens)
             top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
-            for idx in top_indices:
-                rb = self.runbook_corpus[idx]
-                sparse_results.append({
-                    "id": rb["id"],
-                    "document": f"{rb['title']} {rb['service']} {rb['procedure']}",
-                    "metadata": {
-                        "title": rb["title"],
-                        "service": rb["service"],
-                        "command_snippet": rb.get("command_snippet", "")
-                    }
-                })
+            sparse_results = [self.runbook_corpus[idx] for idx in top_indices if scores[idx] > 0]
 
         return self._reciprocal_rank_fusion(dense_results, sparse_results)[:top_k]
 
