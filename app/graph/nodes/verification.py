@@ -1,10 +1,16 @@
 from app.graph.state import IncidentState
+from app.services.safety import is_unsafe
 
 def verification_node(state: IncidentState) -> dict:
     proposed_fix = state.get("proposed_fix", "")
     fix_confidence = state.get("fix_confidence", 0.0)
 
-    if fix_confidence >= 0.60 and proposed_fix:
+    if is_unsafe(proposed_fix):
+        verification_result = "unresolved"
+        escalate = True
+        status_msg = "FAILED: Proposed fix matches a destructive command pattern. Escalating to human on-call engineer regardless of confidence."
+
+    elif fix_confidence >= 0.60 and proposed_fix:
         verification_result = "resolved"
         escalate = False
         status_msg = "PASSED: Confidence threshold met (>=0.60). Ready for automated or approved execution."
