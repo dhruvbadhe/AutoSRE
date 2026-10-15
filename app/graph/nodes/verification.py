@@ -14,12 +14,12 @@ def verification_node(state: IncidentState) -> dict:
         escalate = True
         status_msg = "FAILED: Confidence below safety threshold (<0.60). Escalating to human on-call engineer."
 
-        reasoning_step = f"Verification Node: Pre-flight check {status_msg}"
-        current_trace = state.get("reasoning_trace" , [])
-        updated_trace = current_trace + [reasoning_step]
+    reasoning_step = f"Verification Node: Pre-flight check {status_msg}"
+    current_trace = state.get("reasoning_trace" , [])
+    updated_trace = current_trace + [reasoning_step]
 
-        return {
-            "verification_result": verification_result,
-            "escalate": escalate,
-            "reasoning_trace": updated_trace
-        }
+    return {
+        "verification_result": verification_result,
+        "escalate": escalate,
+        "reasoning_trace": updated_trace
+    }
