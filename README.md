@@ -85,9 +85,7 @@ Metrics per run, reported as mean and min over the runs:
 **Hybrid Retrieval — RRF Formula:**
 
 ```
-RRF_Score(d) = Σ [ w_m / (k + r_m(d)) ]
-  Dense weight  = 0.70  (semantic intent)
-  Sparse weight = 0.30  (exact error token matching)
+RRF_Score(d) = Σ_m 1 / (k + r_m(d))      m ∈ {dense, BM25}, equal weights
   k             = 60    (rank smoothing constant)
 ```
 
@@ -262,7 +260,7 @@ Linear chains cannot loop back when retrieved context is insufficient. LangGraph
 A query for `"auth-service memory leak"` has strong semantic similarity to both historical crash logs *and* Kubernetes scaling runbooks. Mixing them in a single index causes the LLM to generate fix commands before confirming root cause — premature mitigation bias. Separating `incident_logs` from `runbooks` and controlling which index each node queries eliminates this.
 
 ### Why BM25 + RRF instead of pure dense search?
-Dense embeddings treat `HTTP 504` and `HTTP 502` as semantically close. BM25 treats them as exact lexical tokens. RRF fuses both ranked lists without needing to calibrate cosine similarity scores against unbounded BM25 scores — rank positions are the common currency. 70/30 weighting (dense/sparse) was tuned on the eval suite.
+Dense embeddings treat `HTTP 504` and `HTTP 502` as semantically close. BM25 treats them as exact lexical tokens. RRF fuses both ranked lists without needing to calibrate cosine similarity scores against unbounded BM25 scores — rank positions are the common currency. The two lists are weighted equally. An earlier 70/30 dense/sparse split made a BM25-only hit (0.3/61) lose to every top-3 dense hit (≥ 0.7/63), so exact error-string matches were always cut. `tests/test_retrieval.py` now checks that a document only BM25 can find still reaches the top 3.
 
 ### Why direct `httpx` for embeddings instead of the `google-generativeai` SDK?
 The full SDK pulls in `torch` and related dependencies — over 1.2 GB disk and ~400 MB idle RAM. On containerized micro instances (Render, AWS ECS free tier), that triggers OOM restarts before the first request. Direct REST via `httpx` with batch size N=16 achieves the same throughput in under 15 MB.
@@ -282,7 +280,7 @@ Tavily requires credit card registration even for the free tier. For an open-sou
 pip install -r requirements.txt -r requirements-dev.txt
 ruff check .
 pytest --cov=app
-# 48 passed, 1 xfailed (documented denylist bypass)
+# 55 passed, 1 xfailed (documented denylist bypass), 75% coverage of app/
 
 # Eval: calls the real Gemini API and needs GEMINI_API_KEY
 python eval/run_eval.py --runs 3
@@ -294,7 +292,7 @@ python eval/run_eval.py --runs 3
 ## Limitations & What I'd Do Differently
 
 - **Eval dataset is curated, not production-sampled.** 3/3 Recall@3 on 4 hand-written scenarios doesn't guarantee performance on novel log formats. A real deployment would need a larger, messier evaluation set.
-- **BM25 index is in-memory and only built by the seed script.** `vector_store.add_incidents/add_runbooks` build it, and only `seed_data.py` calls them. A fresh API, CLI or eval process therefore starts with no BM25 index, and retrieval falls back to dense-only. The fix is to rebuild BM25 from ChromaDB on startup, or persist it to disk.
+- **BM25 index is rebuilt in memory at every startup.** `MultiIndexVectorStore` reads every stored document from ChromaDB when the API, CLI or eval starts and builds BM25 from it. That's cheap for the seeded handful of incidents, but startup time grows with the corpus. Persisting the index, or using a search engine with native BM25, would fix that at scale.
 - **No authentication on the API.** The `/triage` endpoint is open. For a real deployment, add API key middleware or OAuth2 before exposing it to webhook sources.
 - **Gemini quota dependency.** Free-tier `gemini-3.5-flash-lite` has daily request limits. Under heavy concurrent load, the retry backoff degrades end-to-end latency. A paid tier or local model fallback (Ollama) would decouple this.
 - **Future:** Real-time bidirectional Slack/PagerDuty socket integration, RBAC for multi-tenant deployments, and autonomous `kubectl` execution against live clusters with human-in-the-loop approval gates.

@@ -52,7 +52,7 @@ Each of these is also an interview story: **wrote a test → it failed → found
 | B1 ✅ | BM25 index built/loaded whenever the vector store starts (API, CLI, eval), so hybrid retrieval is real | Failing test first: a fresh store returns a BM25-only match for an exact error string | 45 min |
 | B2 ✅ | Web-search results from the query rewriter survive into the grader's input | Failing test first: after rewrite → search, the grader receives the search results | 30 min |
 | B3 ✅ | CLI tests with `typer.testing.CliRunner`, API mocked: piped stdin, `--help`, API down → clear error + non-zero exit | Tests pass in CI | 45 min |
-| B4 | Bump to 1.0.2 (pyproject.toml + setup.py) and add a CHANGELOG entry (A0.5, A1–A4, B1, B2). No tag | Version bumped, CHANGELOG present | 15 min |
+| B4 ✅ | Bump to 1.0.2 (pyproject.toml + setup.py) and add a CHANGELOG entry (A0.5, A1–A4, B1, B2). No tag | Version bumped, CHANGELOG present | 15 min |
 
 ✅ done-check passed · ⏳ code merged, done-check needs a manual step (see `docs/UPGRADE_REPORT.md`)
 
